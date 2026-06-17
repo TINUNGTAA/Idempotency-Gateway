@@ -6,7 +6,7 @@ function ValidatePaymentBody(req,res,next){
     const {amount , currency} =req.body
 //check if amount is a positive number
     if(typeof amount !== "number" ||amount<=0 || !Number.isFinite(amount)){
-        return res.status(400).json({error:"Amount must be postive number"})
+        return res.status(400).json({error:"Amount must be a positive number"})
     }
 //check if currency is a 3-letter code
  if (typeof currency !== 'string' || !/^[A-Za-z]{3}$/.test(currency.trim())) {
