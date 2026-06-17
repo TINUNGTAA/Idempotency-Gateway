@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const validateHeaders = require('../middleware/validateHeaders');
-const validateBody = require('../middleware/validateBody');
+const validateBody = require('../middleware/validatePaymentBody');
 const { getEntry, saveProcessing, saveComplete, cleanup } = require('../services/idempotencyStore');
-const { processPayment } = require('../services/paymentProcessor');
+const { processPayment } = require('../services/paymentProcess');
 const hashBody = require('../utils/hashBody');
 
 
@@ -18,7 +18,7 @@ router.post('/process-payment', validateHeaders, validateBody, async (req, res) 
 
   const existingEntry = getEntry(idempotencyKey);
 
-  // Case A: New key — process the payment for the first time
+  // New key :process the payment for the first time
   if (!existingEntry) {
     const processingPromise = processPayment(amount, currency);
     saveProcessing(idempotencyKey, bodyHash, processingPromise);
@@ -29,9 +29,14 @@ router.post('/process-payment', validateHeaders, validateBody, async (req, res) 
     return res.status(response.statusCode).json(response.body);
   }
 
-  
+  // conflict check: Same key, different body
+  if (existingEntry.bodyHash !== bodyHash) {
+    return res.status(422).json({
+      error: 'Idempotency key already used for a different request body.',
+    });
+  }
 
-  // Case B: Same key, same body, still processing
+  // Same key, same body, still processing
   if (existingEntry.status === 'processing') {
     const response = await existingEntry.promise;
     return res
@@ -40,7 +45,7 @@ router.post('/process-payment', validateHeaders, validateBody, async (req, res) 
       .json(response.body);
   }
 
-  // Case C: Same key, same body, already done 
+  // Same key, same body, already done 
   // replay stored response immediately
   if (existingEntry.status === 'done') {
     return res
@@ -49,12 +54,7 @@ router.post('/process-payment', validateHeaders, validateBody, async (req, res) 
       .json(existingEntry.response.body);
   }
 
-  // Case D: Same key, different body
-  if (existingEntry.bodyHash !== bodyHash) {
-    return res.status(422).json({
-      error: 'Idempotency key already used for a different request body.',
-    });
-  }
+
 
   // Defensive fallback should never reach here
   return res.status(500).json({ error: 'Invalid idempotency record state' });

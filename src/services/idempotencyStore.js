@@ -2,7 +2,7 @@ const store = new Map();
 const TTL_MS = 24 * 60 * 60 * 1000;
 
 //removes entries older than 24 hours
-function cleanupExpiredEntries() {
+function cleanup() {
   const now = Date.now();
   for (const [key, entry] of store) {
     if (now - entry.createdAt > TTL_MS) {

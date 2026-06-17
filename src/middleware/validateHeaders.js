@@ -1,6 +1,6 @@
 function ValidateHeaders(req, res, next) {
 
-    const idempotencyKey = req.headers.get('Idempotency-Key');
+    const idempotencyKey = req.get('Idempotency-Key');
     if(!idempotencyKey || idempotencyKey.trim().length === 0) {
         return res.status(400).json({error: 'Idempotency-Key header is required'})
        
